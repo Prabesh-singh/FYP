@@ -1,17 +1,23 @@
 const express = require("express");
+const cors = require('cors');
+const dotenv = require('dotenv');
+
+const doctorRoutes = require('./routes/doctorRoutes');
+const authRoutes = require("./routes/authRoutes");
+
+dotenv.config();
+
 const app = express();
-require("dotenv").config();
 
 // Middleware to parse JSON
 app.use(express.json());
+app.use(cors());
 
-// Import routes
-const authRoutes = require("./routes/authRoutes");
-
-// Use routes with prefix /api/auth
+// Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/doctor", doctorRoutes);  // <-- fixed
 
-// Optional: basic route to test server
+// Test route
 app.get("/", (req, res) => {
     res.send("Server is running ✅");
 });

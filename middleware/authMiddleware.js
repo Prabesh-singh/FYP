@@ -1,40 +1,32 @@
 const jwt = require("jsonwebtoken");
+const asyncHandler = require("express-async-handler");
 const User = require("../models/User");
+const Doctor = require("../models/Doctor");
 
-// Protect routes middleware
-const protect = async (req, res, next) => {
+// Protect user routes
+exports.protectUser = asyncHandler(async (req, res, next) => {
     let token;
-
-    // Check for Bearer token in headers
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-        try {
-            // Extract token from "Bearer <token>"
-            token = req.headers.authorization.split(" ")[1];
-
-            // Verify token using your secret key
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-            // Find the user associated with token (exclude password)
-            req.user = await User.findById(decoded.id).select("-password");
-
-            // If user doesn’t exist
-            if (!req.user) {
-                return res.status(404).json({ message: "User not found" });
-            }
-
-            // Move to next middleware or controller
-            next();
-
-        } catch (err) {
-            console.error("Token verification failed:", err);
-            return res.status(401).json({ message: "Invalid or expired token" });
-        }
+        token = req.headers.authorization.split(" ")[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = await User.findById(decoded.id).select("-password");
+        if (!req.user) return res.status(404).json({ message: "User not found" });
+        next();
+    } else {
+        res.status(401).json({ message: "No token, authorization denied" });
     }
+});
 
-    // If no token provided
-    if (!token) {
-        return res.status(401).json({ message: "No token, authorization denied" });
+// Protect doctor routes
+exports.protectDoctor = asyncHandler(async (req, res, next) => {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+        token = req.headers.authorization.split(" ")[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.doctor = await Doctor.findById(decoded.id).select("-password");
+        if (!req.doctor) return res.status(404).json({ message: "Doctor not found" });
+        next();
+    } else {
+        res.status(401).json({ message: "No token, authorization denied" });
     }
-};
-
-module.exports = protect;
+});

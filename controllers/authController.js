@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const asyncHandler = require("express-async-handler");
 
 // ---------------- SIGNUP ----------------
 exports.signup = async (req, res) => {
