@@ -14,22 +14,53 @@ function signToken(doctor) {
 // Register doctor
 exports.registerDoctor = async (req, res, next) => {
     try {
-        const { name, email, password, specialization, experienceYears, phone } = req.body;
-        if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password required' });
+        const { name, email, password, specialization, experienceYears, phone, profilePic } = req.body;
 
+        if (!name || !email || !password)
+            return res.status(400).json({ message: "Name, email and password required" });
+
+        // Check if email already exists
         const exists = await Doctor.findOne({ email });
-        if (exists) return res.status(400).json({ message: 'Email already registered' });
+        if (exists) return res.status(400).json({ message: "Email already registered" });
 
+        // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashed = await bcrypt.hash(password, salt);
 
+        // Create doctor
         const doctor = new Doctor({
-            name, email, password: hashed, specialization, experienceYears, phone
+            name,
+            email,
+            password: hashed,
+            specialization: specialization || "",
+            experienceYears: experienceYears || 0,
+            phone: phone || "",
+            profilePic: profilePic || "",
+            ratings: 0,
+            numRatings: 0,
         });
-        await doctor.save();
 
+        await doctor.save();
+        const doctors = await Doctor.find();
+        res.json(doctors);
+        // Sign JWT token
         const token = signToken(doctor);
-        res.status(201).json({ token, doctor: { id: doctor._id, name: doctor.name, email: doctor.email } });
+
+        // Return token + doctor info (without password)
+        res.status(201).json({
+            token,
+            doctor: {
+                id: doctor._id,
+                name: doctor.name,
+                email: doctor.email,
+                specialization: doctor.specialization,
+                experienceYears: doctor.experienceYears,
+                phone: doctor.phone,
+                profilePic: doctor.profilePic,
+                ratings: doctor.ratings,
+                numRatings: doctor.numRatings,
+            },
+        });
     } catch (err) {
         next(err);
     }

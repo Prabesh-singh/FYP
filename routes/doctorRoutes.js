@@ -10,6 +10,7 @@ router.post('/login', doctorController.loginDoctor);
 // protected routes
 router.get('/profile', protectDoctor, doctorController.getProfile);
 router.put('/profile', protectDoctor, doctorController.updateProfile);
+router.get("/", getAllDoctors);
 
 // appointments
 router.get('/appointments', protectDoctor, doctorController.getAppointments);
