@@ -41,8 +41,7 @@ exports.registerDoctor = async (req, res, next) => {
         });
 
         await doctor.save();
-        const doctors = await Doctor.find();
-        res.json(doctors);
+
         // Sign JWT token
         const token = signToken(doctor);
 
