@@ -65,6 +65,16 @@ exports.registerDoctor = async (req, res, next) => {
     }
 };
 
+// Get all doctors
+exports.getAllDoctors = async (req, res, next) => {
+    try {
+        const doctors = await Doctor.find().select('-password'); // exclude passwords
+        res.json(doctors); // send all doctors
+    } catch (err) {
+        next(err);
+    }
+};
+
 // Login doctor
 exports.loginDoctor = async (req, res, next) => {
     try {
