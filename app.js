@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 
 const doctorRoutes = require('./routes/doctorRoutes');
 const authRoutes = require("./routes/authRoutes");
+const doctorAvailabilityRoutes = require("./routes/avaibleRoutes");
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ app.use(cors());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/doctor", doctorRoutes);  // <-- fixed
+app.use("/api", doctorAvailabilityRoutes);
 
 // Test route
 app.get("/", (req, res) => {

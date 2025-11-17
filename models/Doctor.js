@@ -11,6 +11,7 @@ const doctorSchema = new mongoose.Schema({
     numRatings: { type: Number, default: 0 },
     profilePic: { type: String },
     createdAt: { type: Date, default: Date.now }
+    
 });
 
 module.exports = mongoose.model('Doctor', doctorSchema);
