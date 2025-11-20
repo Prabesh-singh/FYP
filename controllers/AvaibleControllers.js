@@ -1,4 +1,3 @@
-// controllers/doctorAvailabilityController.js
 const DoctorAvailability = require("../models/DoctorAvailability");
 
 // Add or Update Availability
@@ -11,15 +10,17 @@ exports.addOrUpdateAvailability = async (req, res) => {
             return res.status(400).json({ success: false, message: "Date and times are required" });
         }
 
+        // Convert string to Date if needed
+        const availabilityDate = new Date(date);
+        availabilityDate.setHours(0, 0, 0, 0); // normalize to start of day
+
         // Check if availability for that date exists
-        let slot = await DoctorAvailability.findOne({ doctor: doctorId, date });
+        let slot = await DoctorAvailability.findOne({ doctor: doctorId, date: availabilityDate });
 
         if (slot) {
-            // Update existing
-            slot.times = times;
+            slot.times = times; // update
         } else {
-            // Create new
-            slot = new DoctorAvailability({ doctor: doctorId, date, times });
+            slot = new DoctorAvailability({ doctor: doctorId, date: availabilityDate, times });
         }
 
         await slot.save();
@@ -45,7 +46,9 @@ exports.getAvailability = async (req, res) => {
 exports.deleteAvailability = async (req, res) => {
     try {
         const { doctorId, date } = req.params;
-        await DoctorAvailability.findOneAndDelete({ doctor: doctorId, date });
+        const availabilityDate = new Date(date);
+        availabilityDate.setHours(0, 0, 0, 0);
+        await DoctorAvailability.findOneAndDelete({ doctor: doctorId, date: availabilityDate });
         res.json({ success: true, message: "Availability deleted" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
