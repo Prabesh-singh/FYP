@@ -1,8 +1,9 @@
 const Message = require("../models/Message");
 
-// Fetch messages between user and doctor
-const getMessages = async (req, res) => {
+// GET messages between a user and doctor
+exports.getMessages = async (req, res) => {
     const { userId, doctorId } = req.params;
+
     try {
         const messages = await Message.find({
             $or: [
@@ -10,21 +11,29 @@ const getMessages = async (req, res) => {
                 { sender: doctorId, receiver: userId },
             ],
         }).sort({ createdAt: 1 });
-        res.json({ success: true, messages });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+
+        res.json(messages);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server Error" });
     }
 };
 
-// Send a new message
-const sendMessage = async (req, res) => {
-    const { sender, receiver, text } = req.body;
+// POST a new message
+exports.sendMessage = async (req, res) => {
+    const { sender, receiver, message } = req.body;
+
+    if (!sender || !receiver || !message) {
+        return res.status(400).json({ message: "All fields are required" });
+    }
+
     try {
-        const message = await Message.create({ sender, receiver, text });
-        res.json({ success: true, message });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        const newMessage = new Message({ sender, receiver, message });
+        await newMessage.save();
+
+        res.status(201).json(newMessage);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server Error" });
     }
 };
-
-module.exports = { getMessages, sendMessage };
