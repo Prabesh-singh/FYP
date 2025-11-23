@@ -1,9 +1,14 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const DoctorAvailabilitySchema = new mongoose.Schema({
-    doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true },
     date: { type: Date, required: true },
-    times: [String], // ["10:00 AM", "2:00 PM"]
+    times: [
+        {
+            time: { type: String, required: true },
+            payment: { type: Number, required: true },
+        },
+    ],
 });
 
-module.exports = mongoose.model('DoctorAvailability', DoctorAvailabilitySchema);
+module.exports = mongoose.model("DoctorAvailability", DoctorAvailabilitySchema);

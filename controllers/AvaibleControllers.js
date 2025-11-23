@@ -4,13 +4,13 @@ const DoctorAvailability = require("../models/DoctorAvailability");
 exports.addOrUpdateAvailability = async (req, res) => {
     try {
         const { doctorId } = req.params;
-        const { date, times } = req.body;
+        const { date, times } = req.body; // times = [{ time: "10:00 AM", payment: 300 }, ...]
 
         if (!date || !times || !times.length) {
             return res.status(400).json({ success: false, message: "Date and times are required" });
         }
 
-        // Convert string to Date if needed
+        // Convert string to Date
         const availabilityDate = new Date(date);
         availabilityDate.setHours(0, 0, 0, 0); // normalize to start of day
 
@@ -18,14 +18,13 @@ exports.addOrUpdateAvailability = async (req, res) => {
         let slot = await DoctorAvailability.findOne({ doctor: doctorId, date: availabilityDate });
 
         if (slot) {
-            slot.times = times; // update
+            slot.times = times; // update all times
         } else {
             slot = new DoctorAvailability({ doctor: doctorId, date: availabilityDate, times });
         }
 
         await slot.save();
         res.json({ success: true, message: "Availability saved", slot });
-
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
