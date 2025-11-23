@@ -31,15 +31,25 @@ exports.addOrUpdateAvailability = async (req, res) => {
 };
 
 // Get all availability for a doctor
-exports.getAvailability = async (req, res) => {
+exports.getAvailability = async (req, res, next) => {
     try {
         const { doctorId } = req.params;
-        const slots = await DoctorAvailability.find({ doctor: doctorId });
-        res.json({ success: true, slots });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+
+        // Find all availability for this doctor
+        const slots = await DoctorAvailability.find({ doctor: doctorId }).sort({ date: 1 });
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // normalize
+
+        // Filter out past dates
+        const upcomingSlots = slots.filter(slot => slot.date >= today);
+
+        res.json({ success: true, availability: upcomingSlots });
+    } catch (err) {
+        next(err);
     }
 };
+
 
 // Delete a specific date availability
 exports.deleteAvailability = async (req, res) => {

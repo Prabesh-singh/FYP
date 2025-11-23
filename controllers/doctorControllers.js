@@ -186,29 +186,6 @@ exports.addTestResult = async (req, res, next) => {
     }
 };
 
-// Get doctor availability (simple filter logic)
-exports.getAvailability = async (req, res, next) => {
-    try {
-        const doctorId = req.params.doctorId;
-
-        const doctor = await Doctor.findById(doctorId);
-        if (!doctor) {
-            return res.status(404).json({ message: "Doctor not found" });
-        }
-
-        let availability = doctor.availability || [];
-
-        // Simple filter logic
-        const today = new Date().toISOString().split("T")[0];
-        availability = availability.filter(slot => new Date(slot.date) >= today);
-
-        res.json({ availability });
-    } catch (err) {
-        next(err);
-    }
-};
-
-
 // Add prescription
 exports.addPrescription = async (req, res, next) => {
     try {
