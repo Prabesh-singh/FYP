@@ -8,6 +8,7 @@ const doctorRoutes = require("./routes/doctorRoutes");
 const authRoutes = require("./routes/authRoutes");
 const doctorAvailabilityRoutes = require("./routes/avaibleRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const AppointmentRoutes = require("./routes/AppointmentRoutes");
 dotenv.config();
 
 const app = express();
@@ -21,6 +22,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/doctor", doctorRoutes);
 app.use("/api", doctorAvailabilityRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/", AppointmentRoutes);
 
 // Test route
 app.get("/", (req, res) => res.send("Server is running ✅"));
