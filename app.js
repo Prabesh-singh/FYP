@@ -23,7 +23,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/doctor", doctorRoutes);
 app.use("/api", doctorAvailabilityRoutes);
 app.use("/api/messages", messageRoutes);
-app.use("/api/", AppointmentRoutes);
+app.use("/api/appointments", AppointmentRoutes);
+
 
 // Test route
 app.get("/", (req, res) => res.send("Server is running ✅"));
