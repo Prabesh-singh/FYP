@@ -9,6 +9,7 @@ const authRoutes = require("./routes/authRoutes");
 const doctorAvailabilityRoutes = require("./routes/avaibleRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const AppointmentRoutes = require("./routes/AppointmentRoutes");
+
 dotenv.config();
 
 const app = express();
