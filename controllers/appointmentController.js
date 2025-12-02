@@ -10,36 +10,44 @@ exports.bookAppointment = async (req, res) => {
             return res.status(400).json({ success: false, message: "Required fields missing" });
         }
 
-        // Convert scheduledAt to proper UTC date
         const scheduledDate = new Date(scheduledAt).toISOString();
 
-        // Check if slot already booked (same doctor, exact time)
-        const existing = await Appointment.findOne({
-            doctorId,
-            scheduledAt: scheduledDate,
-            status: { $in: ['Pending', 'Confirmed'] }
-        });
+        // Atomic operation: Only create if slot is free
+        const result = await Appointment.findOneAndUpdate(
+            {
+                doctorId,
+                scheduledAt: scheduledDate,
+                status: { $nin: ['Pending', 'Confirmed'] }   // only if free or cancelled
+            },
+            {
+                $setOnInsert: {
+                    userId,
+                    doctorId,
+                    scheduledAt: scheduledDate,
+                    reason,
+                    status: "Pending",
+                    payment: { status: "Pending", amount: fee }
+                }
+            },
+            {
+                new: true,
+                upsert: true   // creates ONLY if no match
+            }
+        );
 
-        if (existing) {
-            return res.status(400).json({ success: false, message: "This time slot is already booked" });
+        // If status is not 'Pending', slot was already booked
+        if (result.status !== "Pending" || result.userId.toString() !== userId) {
+            return res.status(400).json({ success: false, message: "Slot already booked by another user" });
         }
 
-        const newAppointment = new Appointment({
-            userId,
-            doctorId,
-            scheduledAt: scheduledDate,
-            reason,
-            payment: { status: "Pending", amount: fee }
-        });
-
-        const savedAppointment = await newAppointment.save();
-        res.json({ success: true, appointment: savedAppointment });
+        res.json({ success: true, appointment: result });
 
     } catch (err) {
         console.error("Book Appointment Error:", err);
         res.status(500).json({ success: false, message: "Server error" });
     }
 };
+
 
 // 2️⃣ Confirm an appointment
 exports.confirmAppointment = async (req, res) => {
