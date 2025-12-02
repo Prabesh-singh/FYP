@@ -12,3 +12,4 @@ router.post("/confirm", appointmentController.confirmAppointment);
 router.get("/", appointmentController.getAppointments);
 
 module.exports = router;
+
