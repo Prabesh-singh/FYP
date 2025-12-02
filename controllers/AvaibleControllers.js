@@ -1,4 +1,5 @@
 const DoctorAvailability = require("../models/DoctorAvailability");
+const Appointment = require("../models/Appointment");
 
 // Add or Update Availability
 exports.addOrUpdateAvailability = async (req, res) => {
@@ -31,6 +32,24 @@ exports.addOrUpdateAvailability = async (req, res) => {
 };
 
 // Get all availability for a doctor
+// exports.getAvailability = async (req, res, next) => {
+//     try {
+//         const { doctorId } = req.params;
+
+//         // Find all availability for this doctor
+//         const slots = await DoctorAvailability.find({ doctor: doctorId }).sort({ date: 1 });
+
+//         const today = new Date();
+//         today.setHours(0, 0, 0, 0); // normalize
+
+//         // Filter out past dates
+//         const upcomingSlots = slots.filter(slot => slot.date >= today);
+
+//         res.json({ success: true, availability: upcomingSlots });
+//     } catch (err) {
+//         next(err);
+//     }
+// };
 exports.getAvailability = async (req, res, next) => {
     try {
         const { doctorId } = req.params;
@@ -42,14 +61,29 @@ exports.getAvailability = async (req, res, next) => {
         today.setHours(0, 0, 0, 0); // normalize
 
         // Filter out past dates
-        const upcomingSlots = slots.filter(slot => slot.date >= today);
+        let upcomingSlots = slots.filter(slot => slot.date >= today);
+
+        // Get all appointments for this doctor that are Pending or Confirmed
+        const appointments = await Appointment.find({
+            doctorId,
+            status: { $in: ["Pending", "Confirmed"] }
+        });
+
+        // Remove booked times from availability
+        upcomingSlots = upcomingSlots.map(slot => {
+            const bookedTimes = appointments
+                .filter(app => new Date(app.scheduledAt).toISOString().split("T")[0] === slot.date.toISOString().split("T")[0])
+                .map(app => new Date(app.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
+
+            const times = slot.times.filter(t => !bookedTimes.includes(t.time));
+            return { ...slot.toObject(), times };
+        }).filter(slot => slot.times.length > 0); // remove slots with no available times
 
         res.json({ success: true, availability: upcomingSlots });
     } catch (err) {
         next(err);
     }
 };
-
 
 // Delete a specific date availability
 exports.deleteAvailability = async (req, res) => {
