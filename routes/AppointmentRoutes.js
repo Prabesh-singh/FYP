@@ -6,7 +6,7 @@ const appointmentController = require("../controllers/appointmentController");
 router.post("/book", appointmentController.bookAppointment);
 
 // Confirm an appointment
-router.post("/confirm", appointmentController.confirmAppointment);
+//router.post("/confirm", appointmentController.confirmAppointment);
 
 // Get appointments (optional)
 router.get("/", appointmentController.getAppointments);
