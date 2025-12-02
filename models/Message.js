@@ -6,7 +6,7 @@ const messageSchema = new mongoose.Schema(
         receiver: { type: String, required: true },
         message: { type: String, required: true },
     },
-    { timestamps: true } // automatically add createdAt
+    { timestamps: true }
 );
 
 module.exports = mongoose.model("Message", messageSchema);
