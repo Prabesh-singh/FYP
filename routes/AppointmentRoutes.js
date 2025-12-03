@@ -5,11 +5,13 @@ const appointmentController = require("../controllers/appointmentController");
 // Book a new appointment
 router.post("/book", appointmentController.bookAppointment);
 
-// Confirm an appointment
-//router.post("/confirm", appointmentController.confirmAppointment);
-
-// Get appointments (optional)
+// Get all appointments (optional filters with query)
 router.get("/", appointmentController.getAppointments);
 
-module.exports = router;
+// Get appointments by doctor
+router.get("/doctor/:doctorId", appointmentController.getAppointmentsByDoctor);
 
+// Get today's appointments by doctor
+router.get("/doctor/today/:doctorId", appointmentController.getTodayAppointments);
+
+module.exports = router;
