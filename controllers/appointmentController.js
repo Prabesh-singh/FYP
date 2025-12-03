@@ -179,13 +179,14 @@ exports.getAppointments = async (req, res) => {
 };
 
 // ==================== 3️⃣ Get Appointments By Doctor ====================
+// ==================== Get Appointments By Doctor ====================
 exports.getAppointmentsByDoctor = async (req, res) => {
     try {
         const { doctorId } = req.params;
         if (!doctorId) return res.status(400).json({ success: false, message: "doctorId is required" });
 
         const appointments = await Appointment.find({ doctorId })
-            .populate("userId", "name email phone")
+            .populate("userId", "fullName email phone address dob gender") // <-- fetch all user info needed
             .populate("doctorId", "name specialization")
             .sort({ scheduledAt: 1 });
 
@@ -196,7 +197,7 @@ exports.getAppointmentsByDoctor = async (req, res) => {
     }
 };
 
-// ==================== 4️⃣ Get Today's Appointments for Doctor ====================
+// ==================== Get Today's Appointments for Doctor ====================
 exports.getTodayAppointments = async (req, res) => {
     try {
         const { doctorId } = req.params;
@@ -213,7 +214,7 @@ exports.getTodayAppointments = async (req, res) => {
             scheduledAt: { $gte: today, $lt: tomorrow },
             status: "Confirmed"
         })
-            .populate("userId", "name email phone")
+            .populate("userId", "fullName email phone address dob gender") // <-- fetch all user info needed
             .populate("doctorId", "name specialization")
             .sort({ scheduledAt: 1 });
 
@@ -223,3 +224,4 @@ exports.getTodayAppointments = async (req, res) => {
         res.status(500).json({ success: false, message: "Server error" });
     }
 };
+
