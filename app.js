@@ -9,6 +9,7 @@ const authRoutes = require("./routes/authRoutes");
 const doctorAvailabilityRoutes = require("./routes/avaibleRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const AppointmentRoutes = require("./routes/AppointmentRoutes");
+const payment = require("./routes/payment")
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use("/api/doctor", doctorRoutes);
 app.use("/api", doctorAvailabilityRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/appointments", AppointmentRoutes);
+app.use("/api/payment", payment);
 
 
 // Test route

@@ -1,11 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const { getMessages, sendMessage } = require("../controllers/messageController");
+const chatController = require("../controllers/messageController");
 
-// GET messages between user and doctor
-router.get("/:userId/:doctorId", getMessages);
+// Get doctors in user's chat list
+router.get("/user/:userId/contacts", chatController.getUserContacts);
 
-// POST a new message
-router.post("/", sendMessage);
+// Get users in doctor's chat list
+router.get("/doctor/:doctorId/contacts", chatController.getDoctorContacts);
+
+// Conversation messages
+router.get("/conversation/:senderId/:receiverId", chatController.getConversation);
+
+// Send a message
+router.post("/send", chatController.sendMessage);
 
 module.exports = router;

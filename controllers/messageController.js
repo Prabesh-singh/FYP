@@ -1,66 +1,115 @@
-const Appointment = require("../models/Appointment");
 const Message = require("../models/Message");
+const Appointment = require("../models/Appointment");
+const User = require("../models/User"); // user & doctor info
 
-// GET messages between user and doctor
-exports.getMessages = async (req, res) => {
-    const { userId, doctorId } = req.params;
-
+// 1️⃣ Get chat contacts for a user
+exports.getUserContacts = async (req, res) => {
     try {
-        // Only messages between confirmed appointment participants
-        const appointment = await Appointment.findOne({
-            status: "Confirmed",
+        const { userId } = req.params;
+
+        // Get confirmed appointments for this user
+        const appointments = await Appointment.find({ userId, status: "Confirmed" }).populate("doctorId", "fullName email profilePic");
+
+        // Map to doctor contacts
+        const contacts = appointments.map(app => ({
+            doctorId: app.doctorId._id,
+            fullName: app.doctorId.fullName,
+            email: app.doctorId.email,
+            profilePic: app.doctorId.profilePic
+        }));
+
+        res.json({ success: true, contacts });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+// 2️⃣ Get chat contacts for a doctor
+exports.getDoctorContacts = async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+
+        // Get confirmed appointments for this doctor
+        const appointments = await Appointment.find({ doctorId, status: "Confirmed" }).populate("userId", "fullName email profilePic");
+
+        // Map to user contacts
+        const contacts = appointments.map(app => ({
+            userId: app.userId._id,
+            fullName: app.userId.fullName,
+            email: app.userId.email,
+            profilePic: app.userId.profilePic
+        }));
+
+        res.json({ success: true, contacts });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+// 3️⃣ Get conversation messages
+exports.getConversation = async (req, res) => {
+    try {
+        const { senderId, receiverId } = req.params;
+
+        // Ensure confirmed appointment exists
+        const appointmentExists = await Appointment.findOne({
             $or: [
-                { userId, doctorId },
-                { userId: doctorId, doctorId: userId },
+                { userId: senderId, doctorId: receiverId },
+                { userId: receiverId, doctorId: senderId }
             ],
+            status: "Confirmed"
         });
 
-        if (!appointment) {
-            return res.status(403).json({ message: "You are not allowed to view these messages" });
+        if (!appointmentExists) {
+            return res.status(403).json({ success: false, message: "No conversation allowed without confirmed appointment" });
         }
 
         const messages = await Message.find({
             $or: [
-                { sender: userId, receiver: doctorId },
-                { sender: doctorId, receiver: userId },
-            ],
-        }).sort({ createdAt: 1 });
+                { sender: senderId, receiver: receiverId },
+                { sender: receiverId, receiver: senderId }
+            ]
+        })
+            .populate("sender", "fullName email profilePic")
+            .populate("receiver", "fullName email profilePic")
+            .sort({ createdAt: 1 });
 
-        res.json(messages);
+        res.json({ success: true, messages });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Server Error" });
+        res.status(500).json({ success: false, message: "Server error" });
     }
 };
 
-// POST a new message
+// 4️⃣ Send message
 exports.sendMessage = async (req, res) => {
-    const { sender, receiver, message } = req.body;
-
-    if (!sender || !receiver || !message) {
-        return res.status(400).json({ message: "All fields are required" });
-    }
-
     try {
-        // Only allow chat if sender and receiver have a confirmed appointment
-        const appointment = await Appointment.findOne({
-            status: "Confirmed",
-            $or: [
-                { userId: sender, doctorId: receiver },
-                { userId: receiver, doctorId: sender },
-            ],
-        });
+        const { sender, receiver, message } = req.body;
 
-        if (!appointment) {
-            return res.status(403).json({ message: "You are not allowed to chat with this user/doctor" });
+        if (!sender || !receiver || !message) {
+            return res.status(400).json({ success: false, message: "Missing fields" });
         }
 
-        const newMessage = new Message({ sender, receiver, message });
-        await newMessage.save();
+        // Check confirmed appointment exists
+        const appointmentExists = await Appointment.findOne({
+            $or: [
+                { userId: sender, doctorId: receiver },
+                { userId: receiver, doctorId: sender }
+            ],
+            status: "Confirmed"
+        });
 
-        res.status(201).json(newMessage);
+        if (!appointmentExists) {
+            return res.status(403).json({ success: false, message: "Chat not allowed without confirmed appointment" });
+        }
+
+        const newMessage = await Message.create({ sender, receiver, message });
+        res.json({ success: true, message: newMessage });
+
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Server Error" });
+        res.status(500).json({ success: false, message: "Server error" });
     }
 };
