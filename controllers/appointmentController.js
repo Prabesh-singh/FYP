@@ -201,7 +201,12 @@ exports.getAppointmentsByDoctor = async (req, res) => {
 exports.getTodayAppointments = async (req, res) => {
     try {
         const { doctorId } = req.params;
-        if (!doctorId) return res.status(400).json({ success: false, message: "doctorId required" });
+
+        if (!doctorId)
+            return res.status(400).json({
+                success: false,
+                message: "doctorId required",
+            });
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -212,16 +217,77 @@ exports.getTodayAppointments = async (req, res) => {
         const appointments = await Appointment.find({
             doctorId,
             scheduledAt: { $gte: today, $lt: tomorrow },
-            status: "Confirmed"
+            status: { $in: ["Confirmed", "completed", "pending"] }, // return all
         })
-            .populate("userId", "fullName email phone address dob gender") // <-- fetch all user info needed
+            .populate("userId", "fullName email phone address dob gender")
             .populate("doctorId", "name specialization")
-            .sort({ scheduledAt: 1 });
+            .sort({ scheduledAt: 1 })
+            .lean(); // converts to normal JS object
 
-        res.json({ success: true, appointments });
+        // Add reason + payment in final output
+        const formattedAppointments = appointments.map((appt) => ({
+            _id: appt._id,
+            userId: appt.userId,
+            doctorId: appt.doctorId,
+            fullName: appt.userId?.fullName,
+            email: appt.userId?.email,
+            phone: appt.userId?.phone,
+            address: appt.userId?.address,
+            gender: appt.userId?.gender,
+            dob: appt.userId?.dob,
+
+            // from appointment model
+            reason: appt.reason || "Not provided",
+            scheduledAt: appt.scheduledAt,
+            status: appt.status,
+
+            payment: {
+                status: appt.payment?.status || "Pending",
+                amount: appt.payment?.amount || 0,
+            },
+        }));
+
+        res.json({
+            success: true,
+            appointments: formattedAppointments,
+        });
+
     } catch (err) {
         console.error("Get Today's Appointments Error:", err);
-        res.status(500).json({ success: false, message: "Server error" });
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+        });
     }
 };
 
+
+// ==================== Clear All Appointment History of a Doctor ====================
+exports.clearDoctorHistory = async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+
+        if (!doctorId) {
+            return res.status(400).json({
+                success: false,
+                message: "doctorId is required"
+            });
+        }
+
+        // Delete all appointments linked to this doctor
+        const result = await Appointment.deleteMany({ doctorId });
+
+        res.json({
+            success: true,
+            message: "All appointment history cleared successfully",
+            deletedCount: result.deletedCount
+        });
+
+    } catch (err) {
+        console.error("Clear Appointment History Error:", err);
+        res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+};
