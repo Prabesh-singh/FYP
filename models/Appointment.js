@@ -1,4 +1,4 @@
-// const mongoose = require('mongoose');
+// const mongoose = require("mongoose");
 
 // const prescriptionSchema = new mongoose.Schema({
 //     medicines: [{
@@ -13,37 +13,38 @@
 // }, { _id: false });
 
 // const appointmentSchema = new mongoose.Schema({
-//     userId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
-//     doctorId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Doctor' },
+//     userId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: "User" },
+//     doctorId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: "Doctor" },
 //     scheduledAt: { type: Date, required: true },
 //     reason: { type: String },
 //     status: {
 //         type: String,
-//         enum: ['Pending', 'Confirmed', 'Rescheduled', 'DoctorOnTheWay', 'InProgress', 'Completed', 'Cancelled'],
-//         default: 'Pending'
+//         enum: ['Confirmed', 'Rescheduled', 'DoctorOnTheWay', 'InProgress', 'Completed', 'Cancelled'],
+//         default: 'Confirmed'
 //     },
-//     payment: {
-//         status: { type: String, default: 'Pending' },
-//         amount: { type: Number, default: 0 }
-//     },
+//     price: Number,
+//     status: { type: String, default: "Pending" }, // Pending | Paid
+//     esewa_token: String,
 //     prescription: prescriptionSchema,
 //     createdAt: { type: Date, default: Date.now }
 // });
 
-// module.exports = mongoose.model('Appointment', appointmentSchema);
+// module.exports = mongoose.model("Appointment", appointmentSchema);
 
 const mongoose = require("mongoose");
 
 const prescriptionSchema = new mongoose.Schema({
-    medicines: [{
-        name: String,
-        dose: String,
-        frequency: String,
-        duration: String
-    }],
+    medicines: [
+        {
+            name: String,
+            dose: String,
+            frequency: String,
+            duration: String
+        }
+    ],
     notes: String,
     createdAt: { type: Date, default: Date.now },
-    prescribedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' }
+    prescribedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor" }
 }, { _id: false });
 
 const appointmentSchema = new mongoose.Schema({
@@ -53,12 +54,15 @@ const appointmentSchema = new mongoose.Schema({
     reason: { type: String },
     status: {
         type: String,
-        enum: ['Confirmed', 'Rescheduled', 'DoctorOnTheWay', 'InProgress', 'Completed', 'Cancelled'],
-        default: 'Confirmed'
+        enum: ['Confirmed', 'Rescheduled', 'DoctorOnTheWay', 'InProgress', 'Completed', 'Cancelled', 'Pending', 'Paid'],
+        default: 'Pending'
     },
+    price: Number, // appointment fee
+    esewa_token: String,
     payment: {
-        status: { type: String, default: 'Pending' },
-        amount: { type: Number, default: 0 }
+        amount: Number,
+        status: { type: String, default: "Pending" },
+        createdAt: { type: Date, default: Date.now }
     },
     prescription: prescriptionSchema,
     createdAt: { type: Date, default: Date.now }
