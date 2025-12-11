@@ -93,6 +93,75 @@ const DoctorAvailability = require("../models/DoctorAvailability");
 const mongoose = require("mongoose");
 
 // ==================== 1️⃣ Book Appointment (Atomic, Avoid Race Conditions) ====================
+// exports.bookAppointment = async (req, res) => {
+//     const session = await mongoose.startSession();
+//     session.startTransaction();
+
+//     try {
+//         const { userId, doctorId, date, selectedTime, reason, fee } = req.body;
+
+//         if (!userId || !doctorId || !date || !selectedTime) {
+//             await session.abortTransaction();
+//             session.endSession();
+//             return res.status(400).json({ success: false, message: "Required fields missing" });
+//         }
+
+//         const scheduledAt = new Date(`${date}T${selectedTime}`);
+
+//         // Check if user already booked this slot
+//         const existingAppointment = await Appointment.findOne({
+//             userId, doctorId, scheduledAt, status: "Confirmed"
+//         }).session(session);
+
+//         if (existingAppointment) {
+//             await session.abortTransaction();
+//             session.endSession();
+//             return res.status(400).json({ success: false, message: "You have already booked this slot" });
+//         }
+
+//         // Check if slot already booked by another user
+//         const slotTaken = await Appointment.findOne({
+//             doctorId, scheduledAt, status: "Confirmed"
+//         }).session(session);
+
+//         if (slotTaken) {
+//             await session.abortTransaction();
+//             session.endSession();
+//             return res.status(400).json({ success: false, message: "Slot already booked by another user" });
+//         }
+
+//         // Create appointment
+//         const appointment = await Appointment.create([{
+//             userId, doctorId, scheduledAt, reason,
+//             status: "Confirmed",
+//             payment: { status: "Pending", amount: fee || 0 }
+//         }], { session });
+
+//         // Remove slot from DoctorAvailability
+//         await DoctorAvailability.findOneAndUpdate(
+//             { doctor: doctorId, "times.time": selectedTime },
+//             { $pull: { times: { time: selectedTime } } },
+//             { session }
+//         );
+
+//         // Commit transaction
+//         await session.commitTransaction();
+//         session.endSession();
+
+//         res.json({ success: true, appointment: appointment[0] });
+
+//     } catch (err) {
+//         await session.abortTransaction();
+//         session.endSession();
+//         console.error("Book Appointment Error:", err);
+//         res.status(500).json({ success: false, message: "Server error" });
+//     }
+// };
+
+const mongoose = require("mongoose");
+const Appointment = require("../models/Appointment");
+const DoctorAvailability = require("../models/DoctorAvailability");
+
 exports.bookAppointment = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -110,7 +179,10 @@ exports.bookAppointment = async (req, res) => {
 
         // Check if user already booked this slot
         const existingAppointment = await Appointment.findOne({
-            userId, doctorId, scheduledAt, status: "Confirmed"
+            userId,
+            doctorId,
+            scheduledAt,
+            status: "Confirmed",
         }).session(session);
 
         if (existingAppointment) {
@@ -121,7 +193,9 @@ exports.bookAppointment = async (req, res) => {
 
         // Check if slot already booked by another user
         const slotTaken = await Appointment.findOne({
-            doctorId, scheduledAt, status: "Confirmed"
+            doctorId,
+            scheduledAt,
+            status: "Confirmed",
         }).session(session);
 
         if (slotTaken) {
@@ -131,11 +205,19 @@ exports.bookAppointment = async (req, res) => {
         }
 
         // Create appointment
-        const appointment = await Appointment.create([{
-            userId, doctorId, scheduledAt, reason,
-            status: "Confirmed",
-            payment: { status: "Pending", amount: fee || 0 }
-        }], { session });
+        const appointment = await Appointment.create(
+            [
+                {
+                    userId,
+                    doctorId,
+                    scheduledAt,
+                    reason,
+                    status: "Confirmed",
+                    payment: { status: "Pending", amount: fee || 0 },
+                },
+            ],
+            { session }
+        );
 
         // Remove slot from DoctorAvailability
         await DoctorAvailability.findOneAndUpdate(
@@ -148,8 +230,15 @@ exports.bookAppointment = async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
-        res.json({ success: true, appointment: appointment[0] });
+        // Emit real-time notification to doctor
+        const io = req.app.get("io");
+        io.to(doctorId.toString()).emit("newAppointment", {
+            message: `New appointment booked by user ${userId}`,
+            appointmentId: appointment[0]._id,
+            createdAt: new Date(),
+        });
 
+        res.json({ success: true, appointment: appointment[0] });
     } catch (err) {
         await session.abortTransaction();
         session.endSession();
@@ -157,6 +246,7 @@ exports.bookAppointment = async (req, res) => {
         res.status(500).json({ success: false, message: "Server error" });
     }
 };
+
 
 // ==================== 2️⃣ Get All Appointments (optional by user/doctor) ====================
 exports.getAppointments = async (req, res) => {
@@ -202,66 +292,59 @@ exports.getTodayAppointments = async (req, res) => {
     try {
         const { doctorId } = req.params;
 
-        if (!doctorId)
+        if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
             return res.status(400).json({
                 success: false,
-                message: "doctorId required",
+                message: "Valid doctorId required",
             });
+        }
 
+        // Timezone-safe start and end of today
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
+        const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+        const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
         const appointments = await Appointment.find({
             doctorId,
-            scheduledAt: { $gte: today, $lt: tomorrow },
-            status: { $in: ["Confirmed", "completed", "pending"] }, // return all
+            scheduledAt: { $gte: start, $lte: end },
+            status: { $in: ["Confirmed", "completed", "pending"] },
         })
             .populate("userId", "fullName email phone address dob gender")
-            .populate("doctorId", "name specialization")
+            .populate("doctorId", "fullName specialization")
             .sort({ scheduledAt: 1 })
-            .lean(); // converts to normal JS object
+            .lean();
 
-        // Add reason + payment in final output
         const formattedAppointments = appointments.map((appt) => ({
             _id: appt._id,
-            userId: appt.userId,
-            doctorId: appt.doctorId,
-            fullName: appt.userId?.fullName,
-            email: appt.userId?.email,
-            phone: appt.userId?.phone,
-            address: appt.userId?.address,
-            gender: appt.userId?.gender,
-            dob: appt.userId?.dob,
-
-            // from appointment model
+            fullName: appt.userId?.fullName || "Unknown",
+            email: appt.userId?.email || "N/A",
+            phone: appt.userId?.phone || "N/A",
+            address: appt.userId?.address || "N/A",
+            gender: appt.userId?.gender || "N/A",
+            dob: appt.userId?.dob || null,
             reason: appt.reason || "Not provided",
             scheduledAt: appt.scheduledAt,
             status: appt.status,
-
             payment: {
                 status: appt.payment?.status || "Pending",
                 amount: appt.payment?.amount || 0,
             },
         }));
 
-        res.json({
+        return res.json({
             success: true,
+            count: formattedAppointments.length,
             appointments: formattedAppointments,
         });
 
     } catch (err) {
         console.error("Get Today's Appointments Error:", err);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server error",
         });
     }
 };
-
-
 // ==================== Clear All Appointment History of a Doctor ====================
 exports.clearDoctorHistory = async (req, res) => {
     try {

@@ -2,13 +2,13 @@ const express = require("express");
 const router = express.Router();
 
 const { signup, login, forgotPassword, resetPassword } = require("../controllers/authController");
-const {protectUser} = require("../middleware/authMiddleware");
+const { protectUser } = require("../middleware/authMiddleware");
 
 // Public routes
 router.post("/signup", signup);
 router.post("/login", login);
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
+router.post("/reset-password", resetPassword);
 
 // Protected route example
 router.get("/profile", protectUser, (req, res) => {

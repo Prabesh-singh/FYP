@@ -8,7 +8,7 @@ const userschema = mongoose.Schema({
         address: { type: String},
         dob: { type: Date },
         gender: { type: String},
-    resetPasswordToken: String,
-    resetPasswordExpire: Date
+    resetOTP: String,
+    otpExpires: Date
     }, { timestamps: true });
     module.exports = mongoose.model("User", userschema);

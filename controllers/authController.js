@@ -50,25 +50,27 @@ exports.login = async (req, res) => {
     }
 };
 
-// ---------------- FORGOT PASSWORD ----------------
+// ---------------- FORGOT PASSWORD (Send OTP) ----------------
 exports.forgotPassword = async (req, res) => {
     try {
-        const { email } = req.body;
+        let { email } = req.body;
+
+        // Normalize email
+        email = email.trim().toLowerCase();
+
+        // Find user
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        // Generate token
-        const resetToken = crypto.randomBytes(20).toString("hex");
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Hash token and save in DB
-        user.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-        user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+        // Save OTP and expiry
+        user.resetOTP = otp;
+        user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
         await user.save();
 
-        // Reset URL (frontend page)
-        const resetUrl = `http://your-frontend-app.com/reset-password/${resetToken}`;
-
-        // Nodemailer config
+        // Send OTP via email
         const transporter = nodemailer.createTransport({
             service: "gmail",
             auth: {
@@ -77,21 +79,14 @@ exports.forgotPassword = async (req, res) => {
             }
         });
 
-        const mailOptions = {
+        await transporter.sendMail({
             from: `"Smart Healthcare" <${process.env.EMAIL_USER}>`,
             to: user.email,
-            subject: "Password Reset Request",
-            html: `
-                <p>Hello ${user.fullName},</p>
-                <p>You requested a password reset for your Smart Healthcare account.</p>
-                <p>Click the link below to reset your password (valid for 15 minutes):</p>
-                <a href="${resetUrl}" target="_blank">${resetUrl}</a>
-            `
-        };
+            subject: "Password Reset OTP",
+            text: `Hello ${user.fullName},\n\nYour OTP for password reset is: ${otp}\nIt is valid for 5 minutes.`
+        });
 
-        await transporter.sendMail(mailOptions);
-
-        return res.status(200).json({ message: "Password reset email sent!" });
+        return res.status(200).json({ message: "OTP sent to email" });
 
     } catch (err) {
         console.error(err);
@@ -99,32 +94,43 @@ exports.forgotPassword = async (req, res) => {
     }
 };
 
-// ---------------- RESET PASSWORD ----------------
+// ---------------- RESET PASSWORD (Verify OTP) ----------------
+// ---------------- RESET PASSWORD (OTP + Email) ----------------
 exports.resetPassword = async (req, res) => {
     try {
-        const resetPasswordToken = crypto.createHash("sha256")
-            .update(req.params.token)
-            .digest("hex");
+        const { email, otp, newPassword, confirmPassword } = req.body;
 
-        const user = await User.findOne({
-            resetPasswordToken,
-            resetPasswordExpire: { $gt: Date.now() }
-        });
+        // Validate input
+        if (!email || !otp || !newPassword || !confirmPassword) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
 
-        if (!user) return res.status(400).json({ message: "Invalid or expired token" });
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "Passwords do not match" });
+        }
 
-        const { newPassword } = req.body;
-        user.password = await bcrypt.hash(newPassword, 10);
+        // Find user
+        const user = await User.findOne({ email, resetOTP: otp });
+        if (!user) return res.status(400).json({ message: "Invalid OTP or email" });
 
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
+        // Check OTP expiry
+        if (user.otpExpires < Date.now()) {
+            return res.status(400).json({ message: "OTP expired" });
+        }
+
+        // Hash and save new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+
+        // Clear OTP fields
+        user.resetOTP = null;
+        user.otpExpires = null;
 
         await user.save();
 
-        return res.status(200).json({ message: "Password reset successful" });
-
+        res.status(200).json({ message: "Password reset successful" });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ message: "Server error" });
+        res.status(500).json({ message: "Server error" });
     }
 };
