@@ -1,14 +1,24 @@
 const mongoose = require("mongoose");
 
-const DoctorAvailabilitySchema = new mongoose.Schema({
-    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true },
-    date: { type: Date, required: true },
-    times: [
-        {
-            time: { type: String, required: true },
-            payment: { type: Number, required: true },
+const availabilitySchema = new mongoose.Schema(
+    {
+        doctorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Doctor",
+            required: true,
         },
-    ],
-});
+        date: {
+            type: Date,
+            required: true,
+        },
+        times: [
+            {
+                type: String, // store as "time|payment" string
+                required: true,
+            },
+        ],
+    },
+    { timestamps: true }
+);
 
-module.exports = mongoose.model("DoctorAvailability", DoctorAvailabilitySchema);
+module.exports = mongoose.model("DoctorAvailability", availabilitySchema);

@@ -1,17 +1,14 @@
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const cron = require("node-cron");
 const DoctorAvailability = require("./models/DoctorAvailability");
 
 const doctorRoutes = require("./routes/doctorRoutes");
 const authRoutes = require("./routes/authRoutes");
 const doctorAvailabilityRoutes = require("./routes/avaibleRoutes");
-const messageRoutes = require("./routes/messageRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 const AppointmentRoutes = require("./routes/AppointmentRoutes");
 const esewaRoutes = require("./routes/esewaRoutes");
-
-dotenv.config();
 
 const app = express();
 
@@ -23,10 +20,9 @@ app.use(cors());
 app.use("/api/auth", authRoutes);
 app.use("/api/doctor", doctorRoutes);
 app.use("/api", doctorAvailabilityRoutes);
-app.use("/api/messages", messageRoutes);
+app.use("/api/chat", chatRoutes);
 app.use("/api/appointments", AppointmentRoutes);
 app.use("/esewa", esewaRoutes);
-
 
 // Test route
 app.get("/", (req, res) => res.send("Server is running ✅"));
