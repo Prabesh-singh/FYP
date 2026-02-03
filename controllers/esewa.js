@@ -1,0 +1,64 @@
+const express = require("express");
+const router = express.Router();
+const Appointment = require("../models/Appointment");
+const Notification = require("../models/Notification");
+const { getIO } = require("./socket");
+
+// Load from env
+const MERCHANT_ID = process.env.ESEWA_MERCHANT_ID || "EPAYTEST";
+
+// 1️⃣ Initiate payment — returns form data
+router.post("/initiate", (req, res) => {
+    const { amount, transactionId } = req.body;
+
+    const form = {
+        tAmt: amount,
+        amt: amount,
+        psc: 0,
+        pdc: 0,
+        scd: MERCHANT_ID,
+        pid: transactionId,
+        esewa_payment_url: "https://uat.esewa.com.np/epay/main",
+        success_url: req.body.success_url,  // pass from frontend
+        failure_url: req.body.failure_url,
+        transaction_id: transactionId,
+    };
+
+    res.json(form);
+});
+
+// 2️⃣ Verify payment — dummy / sandbox (always success)
+router.get("/status/:transactionId/:amount", (req, res) => {
+    const { transactionId, amount } = req.params;
+    res.json({ status: "COMPLETE", amount, ref_id: transactionId });
+});
+
+exports.completePayment = async (req, res) => {
+    const { appointmentId } = req.body;
+
+    const appointment = await Appointment.findById(appointmentId);
+
+    const io = getIO();
+
+    const userNoti = await Notification.create({
+        receiverId: appointment.userId,
+        receiverRole: "user",
+        title: "Payment Successful",
+        message: "Your payment completed.",
+        appointmentId,
+    });
+
+    const doctorNoti = await Notification.create({
+        receiverId: appointment.doctorId,
+        receiverRole: "doctor",
+        title: "Payment Received",
+        message: "Patient completed payment.",
+        appointmentId,
+    });
+
+    io.to(appointment.userId.toString()).emit("newNotification", userNoti);
+    io.to(appointment.doctorId.toString()).emit("newNotification", doctorNoti);
+
+    res.json({ message: "Payment successful" });
+};
+module.exports = router;

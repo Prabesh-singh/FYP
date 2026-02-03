@@ -1,167 +1,24 @@
-// // const Appointment = require("../models/Appointment");
-// // const DoctorAvailability = require("../models/DoctorAvailability");
-
-// // // Book appointment (auto-confirmed, atomic)
-// // // Book appointment (auto-confirm, supports new slots)
-// // exports.bookAppointment = async (req, res) => {
-// //     try {
-// //         const { userId, doctorId, date, selectedTime, reason, fee } = req.body;
-
-// //         if (!userId || !doctorId || !date || !selectedTime) {
-// //             return res.status(400).json({ success: false, message: "Required fields missing" });
-// //         }
-
-// //         // Normalize date/time
-// //         const scheduledAt = new Date(`${date}T${selectedTime}`);
-
-// //         // 1️⃣ Check if the user already booked this slot
-// //         const existingAppointment = await Appointment.findOne({
-// //             userId,
-// //             doctorId,
-// //             scheduledAt,
-// //             status: "Confirmed",
-// //         });
-
-// //         if (existingAppointment) {
-// //             return res.status(400).json({
-// //                 success: false,
-// //                 message: "You have already booked this slot",
-// //             });
-// //         }
-
-// //         // 2️⃣ Check if slot already booked by any user
-// //         const slotTaken = await Appointment.findOne({
-// //             doctorId,
-// //             scheduledAt,
-// //             status: "Confirmed",
-// //         });
-
-// //         if (slotTaken) {
-// //             return res.status(400).json({
-// //                 success: false,
-// //                 message: "Slot already booked by another user",
-// //             });
-// //         }
-
-// //         // 3️⃣ Create appointment and auto-confirm
-// //         const appointment = await Appointment.create({
-// //             userId,
-// //             doctorId,
-// //             scheduledAt,
-// //             reason,
-// //             status: "Confirmed",
-// //             payment: { status: "Pending", amount: fee || 0 },
-// //         });
-
-// //         // 4️⃣ Optional: remove slot from DoctorAvailability
-// //         await DoctorAvailability.findOneAndUpdate(
-// //             { doctor: doctorId, "times.time": selectedTime },
-// //             { $pull: { times: { time: selectedTime } } }
-// //         );
-
-// //         res.json({ success: true, appointment });
-
-// //     } catch (err) {
-// //         console.error("Book Appointment Error:", err);
-// //         res.status(500).json({ success: false, message: "Server error" });
-// //     }
-// // };
-
-// // // Get appointments by user or doctor
-// // exports.getAppointments = async (req, res) => {
-// //     try {
-// //         const { userId, doctorId } = req.query;
-// //         const filter = {};
-// //         if (userId) filter.userId = userId;
-// //         if (doctorId) filter.doctorId = doctorId;
-
-// //         const appointments = await Appointment.find(filter)
-// //             .populate("doctorId", "name specialization")
-// //             .populate("userId", "name email");
-
-// //         res.json({ success: true, appointments });
-
-// //     } catch (err) {
-// //         console.error(err);
-// //         res.status(500).json({ success: false, message: "Server error" });
-// //     }
-// // };
-
-
-// // const Appointment = require("../models/Appointment");
-// // const DoctorAvailability = require("../models/DoctorAvailability");
-// // const mongoose = require("mongoose");
-
-// // ==================== 1️⃣ Book Appointment (Atomic, Avoid Race Conditions) ====================
-// // exports.bookAppointment = async (req, res) => {
-// //     const session = await mongoose.startSession();
-// //     session.startTransaction();
-
-// //     try {
-// //         const { userId, doctorId, date, selectedTime, reason, fee } = req.body;
-
-// //         if (!userId || !doctorId || !date || !selectedTime) {
-// //             await session.abortTransaction();
-// //             session.endSession();
-// //             return res.status(400).json({ success: false, message: "Required fields missing" });
-// //         }
-
-// //         const scheduledAt = new Date(`${date}T${selectedTime}`);
-
-// //         // Check if user already booked this slot
-// //         const existingAppointment = await Appointment.findOne({
-// //             userId, doctorId, scheduledAt, status: "Confirmed"
-// //         }).session(session);
-
-// //         if (existingAppointment) {
-// //             await session.abortTransaction();
-// //             session.endSession();
-// //             return res.status(400).json({ success: false, message: "You have already booked this slot" });
-// //         }
-
-// //         // Check if slot already booked by another user
-// //         const slotTaken = await Appointment.findOne({
-// //             doctorId, scheduledAt, status: "Confirmed"
-// //         }).session(session);
-
-// //         if (slotTaken) {
-// //             await session.abortTransaction();
-// //             session.endSession();
-// //             return res.status(400).json({ success: false, message: "Slot already booked by another user" });
-// //         }
-
-// //         // Create appointment
-// //         const appointment = await Appointment.create([{
-// //             userId, doctorId, scheduledAt, reason,
-// //             status: "Confirmed",
-// //             payment: { status: "Pending", amount: fee || 0 }
-// //         }], { session });
-
-// //         // Remove slot from DoctorAvailability
-// //         await DoctorAvailability.findOneAndUpdate(
-// //             { doctor: doctorId, "times.time": selectedTime },
-// //             { $pull: { times: { time: selectedTime } } },
-// //             { session }
-// //         );
-
-// //         // Commit transaction
-// //         await session.commitTransaction();
-// //         session.endSession();
-
-// //         res.json({ success: true, appointment: appointment[0] });
-
-// //     } catch (err) {
-// //         await session.abortTransaction();
-// //         session.endSession();
-// //         console.error("Book Appointment Error:", err);
-// //         res.status(500).json({ success: false, message: "Server error" });
-// //     }
-// // };
-
+// // appointment.controller.js
 // const mongoose = require("mongoose");
 // const Appointment = require("../models/Appointment");
 // const DoctorAvailability = require("../models/DoctorAvailability");
 
+// // -------------------------
+// // Convert AM/PM time + date to JS Date
+// // -------------------------
+// function getScheduledDate(dateStr, timeStr) {
+//     const [time, modifier] = timeStr.split(" ");
+//     let [hours, minutes] = time.split(":").map(Number);
+//     if (modifier === "PM" && hours < 12) hours += 12;
+//     if (modifier === "AM" && hours === 12) hours = 0;
+//     const date = new Date(dateStr);
+//     date.setHours(hours, minutes, 0, 0);
+//     return date;
+// }
+
+// // -------------------------
+// // 1️⃣ Book Appointment
+// // -------------------------
 // exports.bookAppointment = async (req, res) => {
 //     const session = await mongoose.startSession();
 //     session.startTransaction();
@@ -175,7 +32,7 @@
 //             return res.status(400).json({ success: false, message: "Required fields missing" });
 //         }
 
-//         const scheduledAt = new Date(`${date}T${selectedTime}`);
+//         const scheduledAt = getScheduledDate(date, selectedTime);
 
 //         // Check if user already booked this slot
 //         const existingAppointment = await Appointment.findOne({
@@ -201,7 +58,7 @@
 //         if (slotTaken) {
 //             await session.abortTransaction();
 //             session.endSession();
-//             return res.status(400).json({ success: false, message: "Slot already booked by another user" });
+//             return res.status(400).json({ success: false, message: "Slot already booked" });
 //         }
 
 //         // Create appointment
@@ -219,26 +76,28 @@
 //             { session }
 //         );
 
-//         // Remove slot from DoctorAvailability
+//         // Remove booked slot from DoctorAvailability
 //         await DoctorAvailability.findOneAndUpdate(
 //             { doctor: doctorId, "times.time": selectedTime },
 //             { $pull: { times: { time: selectedTime } } },
 //             { session }
 //         );
 
-//         // Commit transaction
 //         await session.commitTransaction();
 //         session.endSession();
 
-//         // Emit real-time notification to doctor
+//         // Real-time notification to doctor (if socket.io used)
 //         const io = req.app.get("io");
-//         io.to(doctorId.toString()).emit("newAppointment", {
-//             message: `New appointment booked by user ${userId}`,
-//             appointmentId: appointment[0]._id,
-//             createdAt: new Date(),
-//         });
+//         if (io) {
+//             io.to(doctorId.toString()).emit("newAppointment", {
+//                 message: `New appointment booked by user ${userId}`,
+//                 appointmentId: appointment[0]._id,
+//                 createdAt: new Date(),
+//             });
+//         }
 
 //         res.json({ success: true, appointment: appointment[0] });
+
 //     } catch (err) {
 //         await session.abortTransaction();
 //         session.endSession();
@@ -247,8 +106,9 @@
 //     }
 // };
 
-
-// // ==================== 2️⃣ Get All Appointments (optional by user/doctor) ====================
+// // -------------------------
+// // 2️⃣ Get All Appointments (optional: by user or doctor)
+// // -------------------------
 // exports.getAppointments = async (req, res) => {
 //     try {
 //         const { userId, doctorId } = req.query;
@@ -268,15 +128,16 @@
 //     }
 // };
 
-// // ==================== 3️⃣ Get Appointments By Doctor ====================
-// // ==================== Get Appointments By Doctor ====================
+// // -------------------------
+// // 3️⃣ Get Appointments By Doctor
+// // -------------------------
 // exports.getAppointmentsByDoctor = async (req, res) => {
 //     try {
 //         const { doctorId } = req.params;
 //         if (!doctorId) return res.status(400).json({ success: false, message: "doctorId is required" });
 
 //         const appointments = await Appointment.find({ doctorId })
-//             .populate("userId", "fullName email phone address dob gender") // <-- fetch all user info needed
+//             .populate("userId", "fullName email phone address dob gender")
 //             .populate("doctorId", "name specialization")
 //             .sort({ scheduledAt: 1 });
 
@@ -287,19 +148,17 @@
 //     }
 // };
 
-// // ==================== Get Today's Appointments for Doctor ====================
+// // -------------------------
+// // 4️⃣ Get Today's Appointments for Doctor
+// // -------------------------
 // exports.getTodayAppointments = async (req, res) => {
 //     try {
 //         const { doctorId } = req.params;
 
 //         if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Valid doctorId required",
-//             });
+//             return res.status(400).json({ success: false, message: "Valid doctorId required" });
 //         }
 
-//         // Timezone-safe start and end of today
 //         const today = new Date();
 //         const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
 //         const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
@@ -331,7 +190,7 @@
 //             },
 //         }));
 
-//         return res.json({
+//         res.json({
 //             success: true,
 //             count: formattedAppointments.length,
 //             appointments: formattedAppointments,
@@ -339,39 +198,23 @@
 
 //     } catch (err) {
 //         console.error("Get Today's Appointments Error:", err);
-//         return res.status(500).json({
-//             success: false,
-//             message: "Server error",
-//         });
+//         res.status(500).json({ success: false, message: "Server error" });
 //     }
 // };
-// // ==================== Clear All Appointment History of a Doctor ====================
+
+// // -------------------------
+// // 5️⃣ Clear All Appointment History of a Doctor
+// // -------------------------
 // exports.clearDoctorHistory = async (req, res) => {
 //     try {
 //         const { doctorId } = req.params;
+//         if (!doctorId) return res.status(400).json({ success: false, message: "doctorId is required" });
 
-//         if (!doctorId) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "doctorId is required"
-//             });
-//         }
-
-//         // Delete all appointments linked to this doctor
 //         const result = await Appointment.deleteMany({ doctorId });
-
-//         res.json({
-//             success: true,
-//             message: "All appointment history cleared successfully",
-//             deletedCount: result.deletedCount
-//         });
-
+//         res.json({ success: true, message: "All appointment history cleared", deletedCount: result.deletedCount });
 //     } catch (err) {
 //         console.error("Clear Appointment History Error:", err);
-//         res.status(500).json({
-//             success: false,
-//             message: "Server error"
-//         });
+//         res.status(500).json({ success: false, message: "Server error" });
 //     }
 // };
 
@@ -380,6 +223,9 @@
 const mongoose = require("mongoose");
 const Appointment = require("../models/Appointment");
 const DoctorAvailability = require("../models/DoctorAvailability");
+const Notification = require("../models/Notification"); // ✅ import Notification model
+
+
 
 // -------------------------
 // Convert AM/PM time + date to JS Date
@@ -461,20 +307,50 @@ exports.bookAppointment = async (req, res) => {
             { session }
         );
 
+        // ✅ Commit transaction
         await session.commitTransaction();
         session.endSession();
 
+        // -----------------------------
         // Real-time notification to doctor (if socket.io used)
-        const io = req.app.get("io");
-        if (io) {
-            io.to(doctorId.toString()).emit("newAppointment", {
-                message: `New appointment booked by user ${userId}`,
-                appointmentId: appointment[0]._id,
-                createdAt: new Date(),
-            });
-        }
+        // -----------------------------
 
-        res.json({ success: true, appointment: appointment[0] });
+        const createdAppointment = appointment[0];
+
+        // -----------------------------
+        // 🔔 Notification Section (UPDATED CORRECTLY)
+        // -----------------------------
+        const io = req.app.get("io");
+
+        // USER Notification
+        const userNotification = new Notification({
+            receiverId: userId,
+            receiverRole: "user",
+            title: "Appointment Confirmed",
+            message: `Your appointment is booked on ${date} at ${selectedTime}.`,
+            appointmentId: createdAppointment._id,
+            isRead: false,
+        });
+        await userNotification.save();
+
+        // Emit real-time notification if socket.io is connected
+        if (io) io.to(userId.toString()).emit("newNotification", userNotification);
+
+        // DOCTOR Notification
+        const doctorNotification = new Notification({
+            receiverId: doctorId,
+            receiverRole: "doctor",
+            title: "New Appointment",
+            message: `You have a new appointment on ${date} at ${selectedTime}.`,
+            appointmentId: createdAppointment._id,
+            isRead: false,
+        });
+        await doctorNotification.save();
+
+        if (io) io.to(doctorId.toString()).emit("newNotification", doctorNotification);
+
+        // Final response
+        res.json({ success: true, appointment: createdAppointment });
 
     } catch (err) {
         await session.abortTransaction();

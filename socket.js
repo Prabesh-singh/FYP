@@ -5,7 +5,7 @@ module.exports = (io) => {
     io.on("connection", (socket) => {
         console.log("Socket connected:", socket.id);
 
-        // JOIN ROOM
+        // --- JOIN ROOM ---
         socket.on("join_room", async ({ roomId, userId, senderRole }) => {
             console.log("JOIN DATA:", { roomId, userId, senderRole });
 
@@ -14,15 +14,12 @@ module.exports = (io) => {
             }
 
             try {
-                const appointment = await Appointment.findById(roomId)
-                    .populate("userId")
-                    .populate("doctorId");
-
+                const appointment = await Appointment.findById(roomId);
                 if (!appointment) return socket.emit("chat_error", "Invalid room");
 
                 const allowedUsers = [
-                    appointment.userId._id.toString(),
-                    appointment.doctorId._id.toString(),
+                    appointment.userId.toString(),
+                    appointment.doctorId.toString(),
                 ];
 
                 if (!allowedUsers.includes(userId)) {
@@ -30,37 +27,47 @@ module.exports = (io) => {
                 }
 
                 socket.join(roomId);
-
                 socket.userId = userId;
                 socket.role = senderRole;
 
-                console.log(`${senderRole.toUpperCase()} ${userId} joined room ${roomId}`);
+                console.log(`✅ ${senderRole.toUpperCase()} ${userId} joined room ${roomId}`);
 
-                // OPTIONAL: notify room when someone joins
-                socket.to(roomId).emit("user_joined", {
-                    userId,
-                    role: senderRole,
-                });
+                socket.to(roomId).emit("user_joined", { userId, role: senderRole });
             } catch (err) {
-                console.error(err);
+                console.error("Join Error:", err);
             }
         });
 
-        // SEND MESSAGE
+        // --- SEND MESSAGE (FIXED VERSION) ---
         socket.on("send_message", async ({ roomId, senderId, senderRole, text }) => {
             if (!text?.trim()) return;
 
-            const message = await Message.create({
-                roomId,
-                senderId,
-                senderRole,
-                text,
-            });
+            try {
+                // 1. FIX: Translate 'user' to 'patient' to match your Mongoose Schema Enum
+                let dbRole = senderRole;
+                if (senderRole === "user") {
+                    dbRole = "patient";
+                }
 
-            io.to(roomId).emit("receive_message", message);
+                // 2. Save to Database
+                const message = await Message.create({
+                    roomId,
+                    senderId,
+                    senderRole: dbRole, // Use the fixed role
+                    text: text.trim(),
+                });
+
+                // 3. Emit to everyone in the room
+                io.to(roomId).emit("receive_message", message);
+                console.log("📩 Message sent and saved to DB");
+
+            } catch (err) {
+                // This catch block prevents the server from crashing!
+                console.error("❌ DB SAVE ERROR:", err.message);
+                socket.emit("chat_error", "Could not save message");
+            }
         });
 
-        // TYPING
         socket.on("typing", ({ roomId }) => {
             socket.to(roomId).emit("typing");
         });

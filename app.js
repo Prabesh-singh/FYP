@@ -9,6 +9,8 @@ const doctorAvailabilityRoutes = require("./routes/avaibleRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const AppointmentRoutes = require("./routes/AppointmentRoutes");
 const esewaRoutes = require("./routes/esewaRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const reminderRoutes = require("./routes/reminderRoutes");
 
 const app = express();
 
@@ -23,6 +25,8 @@ app.use("/api", doctorAvailabilityRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/appointments", AppointmentRoutes);
 app.use("/esewa", esewaRoutes);
+app.use("/api/reminders", reminderRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Test route
 app.get("/", (req, res) => res.send("Server is running ✅"));
