@@ -22,4 +22,7 @@ router.put('/appointments/:id/test-result', protectDoctor, doctorController.addT
 router.post('/appointments/:id/prescription', protectDoctor, doctorController.addPrescription);
 router.put('/appointments/:id/delivery', protectDoctor, doctorController.updateDeliveryStatus);
 
+// ✅ New route: Get doctor by ID
+router.get("/:doctorId", doctorController.getDoctorById);
+
 module.exports = router;

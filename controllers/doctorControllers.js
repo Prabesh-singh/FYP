@@ -238,3 +238,20 @@ exports.updateDeliveryStatus = async (req, res, next) => {
         next(err);
     }
 };
+
+// Get doctor by ID (for frontend /DoctorDetails)
+exports.getDoctorById = async (req, res, next) => {
+    try {
+        const { doctorId } = req.params;
+        if (!doctorId) return res.status(400).json({ success: false, message: "doctorId is required" });
+
+        const doctor = await Doctor.findById(doctorId).select("-password");
+        if (!doctor) return res.status(404).json({ success: false, message: "Doctor not found" });
+
+        res.json({ success: true, doctor });
+    } catch (err) {
+        console.error("Get doctor by ID error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+

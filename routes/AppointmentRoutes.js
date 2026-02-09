@@ -15,4 +15,7 @@ router.delete("/doctor/:doctorId/clear", appointmentController.clearDoctorHistor
 // Get today's appointments by doctor
 router.get("/doctor/today/:doctorId", appointmentController.getTodayAppointments);
 
+// Add this route for user appointments
+router.get("/user/:userId", appointmentController.getAppointmentsByUser);
+
 module.exports = router;

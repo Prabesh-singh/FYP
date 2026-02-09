@@ -429,6 +429,7 @@ exports.getTodayAppointments = async (req, res) => {
 
         const formattedAppointments = appointments.map((appt) => ({
             _id: appt._id,
+            userId: appt.userId?._id || null,  // <--- add this
             fullName: appt.userId?.fullName || "Unknown",
             email: appt.userId?.email || "N/A",
             phone: appt.userId?.phone || "N/A",
@@ -443,6 +444,7 @@ exports.getTodayAppointments = async (req, res) => {
                 amount: appt.payment?.amount || 0,
             },
         }));
+
 
         res.json({
             success: true,
@@ -468,6 +470,45 @@ exports.clearDoctorHistory = async (req, res) => {
         res.json({ success: true, message: "All appointment history cleared", deletedCount: result.deletedCount });
     } catch (err) {
         console.error("Clear Appointment History Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+// controllers/appointmentController.js
+
+exports.getAppointmentsByUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (!userId)
+            return res.status(400).json({ success: false, message: "userId is required" });
+
+        // Fetch all appointments for user and populate doctor + user details
+        const appointments = await Appointment.find({ userId })
+            .populate("doctorId", "name specialization email phone") // full doctor info
+            .populate("userId", "fullName email phone") // optional
+            .sort({ scheduledAt: 1 })
+            .lean(); // convert to plain JS objects
+
+        if (!appointments.length) {
+            return res.json({ success: true, appointments: [] });
+        }
+
+        // Format response
+        const formatted = appointments.map(appt => ({
+            _id: appt._id,
+            doctorId: appt.doctorId || null, // includes full doctor info
+            userId: appt.userId || null,     // includes full user info
+            scheduledAt: appt.scheduledAt,
+            status: appt.status,
+            reason: appt.reason || "",
+            payment: appt.payment || { status: "Pending", amount: 0 },
+            createdAt: appt.createdAt,
+            updatedAt: appt.updatedAt,
+        }));
+
+        res.json({ success: true, appointments: formatted });
+    } catch (err) {
+        console.error("Get User Appointments Error:", err);
         res.status(500).json({ success: false, message: "Server error" });
     }
 };

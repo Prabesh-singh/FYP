@@ -34,3 +34,20 @@ exports.markAllAsRead = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// ---------------------------------
+exports.createMedicineNotification = async ({ patientId, doctorName }) => {
+    try {
+        const notification = await Notification.create({
+            userId: patientId,
+            title: "New Prescription Added 💊",
+            message: `${doctorName} has added new medicines. Please check.`,
+            type: "PRESCRIPTION",
+        });
+
+        return notification;
+    } catch (error) {
+        console.error("Create Medicine Notification Error:", error.message);
+        return null;
+    }
+};
